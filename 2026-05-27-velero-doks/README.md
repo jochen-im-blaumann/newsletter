@@ -1,6 +1,6 @@
 # Schritt für Schritt: Velero auf DOKS installieren und testen
 
-Getestet gegen einen DigitalOcean Kubernetes Cluster (DOKS) — Kubernetes 1.36.0 (1.36.0-do.0),
+Getestet gegen einen DigitalOcean Kubernetes Cluster (DOKS) — Kubernetes 1.35.1 (1.35.1-do.6),
 Velero v1.17, Plugin velero-plugin-for-aws v1.13. Ablage: DigitalOcean Spaces
 (S3-kompatibel). Die Volume-Inhalte sichern wir per File-System-Backup in
 denselben Bucket — ein Backend für alles, portabel.
@@ -337,7 +337,7 @@ velero uninstall --force
 
 ## Hinweis zur Übung
 
-Getestet gegen einen DOKS-Cluster (Kubernetes 1.36.0) mit Velero v1.17 und dem Plugin
+Getestet gegen einen DOKS-Cluster (Kubernetes 1.35.1) mit Velero v1.17 und dem Plugin
 velero-plugin-for-aws v1.13 — mit Ausnahme des vollständigen Cluster-Restores.
 Ein kompletter Restore (`velero restore create --from-backup cluster-backup-…`)
 ergibt nur Sinn in einen leeren/neuen Cluster; ein Restore in den laufenden
