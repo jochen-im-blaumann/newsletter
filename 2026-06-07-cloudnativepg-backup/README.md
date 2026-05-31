@@ -1,46 +1,101 @@
 # CloudNativePG: Backup und Point-in-Time Recovery
 
-Getestet gegen Kubernetes 1.32 (DOKS, DigitalOcean fra1).
+Getestet gegen Kubernetes 1.33.12 (DOKS, DigitalOcean fra1).
 
 In dieser Übung installierst du den CloudNativePG Operator, legst einen PostgreSQL-Cluster mit zwei Replicas an, richtest WAL-Archivierung zu einem S3-kompatiblen Object Store ein, und führst eine Point-in-Time Recovery durch.
 
 ## Voraussetzungen
 
-- `kubectl` konfiguriert gegen einen laufenden DOKS-Cluster
-- `helm` installiert
-- Zugang zu einem S3-kompatiblen Object Store (DigitalOcean Spaces oder lokales MinIO)
-- `kubectl cnpg` Plugin (optional, vereinfacht Diagnose)
+- `kubectl` konfiguriert gegen einen laufenden Kubernetes-Cluster
+- Zugang zu einem S3-kompatiblen Object Store — entweder DigitalOcean Spaces oder MinIO lokal im Cluster (Option A unten)
 
-Plugin installieren:
+## Option A: MinIO im Cluster (ohne externen Storage)
+
+MinIO deployen und Bucket anlegen:
 
 ```bash
-curl -sSfL \
-  https://github.com/cloudnative-pg/cloudnative-pg/releases/latest/download/kubectl-cnpg_linux_amd64.tar.gz \
-  | tar -xz -C /usr/local/bin kubectl-cnpg
+kubectl create namespace minio
+
+cat <<EOF | kubectl apply -f -
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio
+  namespace: minio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minio
+  template:
+    metadata:
+      labels:
+        app: minio
+    spec:
+      containers:
+      - name: minio
+        image: minio/minio:latest
+        args: ["server", "/data"]
+        env:
+        - name: MINIO_ROOT_USER
+          value: minioadmin
+        - name: MINIO_ROOT_PASSWORD
+          value: minioadmin
+        ports:
+        - containerPort: 9000
+        volumeMounts:
+        - name: data
+          mountPath: /data
+      volumes:
+      - name: data
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio
+  namespace: minio
+spec:
+  selector:
+    app: minio
+  ports:
+  - port: 9000
+EOF
+
+cat <<EOF | kubectl apply -f -
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: minio-init
+  namespace: minio
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: mc
+        image: minio/mc:latest
+        command: ["sh", "-c", "mc alias set local http://minio.minio.svc.cluster.local:9000 minioadmin minioadmin && mc mb local/cnpg-backups --ignore-existing"]
+EOF
+
+kubectl -n minio wait --for=condition=complete job/minio-init --timeout=60s
 ```
+
+Verwende dann in Schritt 2 und 3:
+- `ACCESS_KEY_ID` / `SECRET_ACCESS_KEY`: `minioadmin`
+- `endpointURL`: `http://minio.minio.svc.cluster.local:9000`
+- `destinationPath`: `s3://cnpg-backups/postgres-prod`
 
 ## Schritt 1: CloudNativePG Operator installieren
 
 ```bash
 kubectl apply --server-side -f \
   https://raw.githubusercontent.com/cloudnative-pg/cloudnative-pg/release-1.25/releases/cnpg-1.25.0.yaml
-```
 
-Warten bis der Controller läuft:
-
-```bash
 kubectl -n cnpg-system rollout status deployment/cnpg-controller-manager
 ```
 
-Verfügbare CRDs prüfen:
-
-```bash
-kubectl get crds | grep cnpg
-```
-
-## Schritt 2: Credentials für Object Store anlegen
-
-Ersetze `<ACCESS_KEY>` und `<SECRET_KEY>` mit deinen Spaces- oder MinIO-Credentials:
+## Schritt 2: Namespace und Credentials anlegen
 
 ```bash
 kubectl create namespace production
@@ -52,7 +107,7 @@ kubectl -n production create secret generic backup-creds \
 
 ## Schritt 3: PostgreSQL-Cluster mit Backup anlegen
 
-Passe `destinationPath` und `endpointURL` auf deinen Object Store an. Für DigitalOcean Spaces in `fra1` wäre `endpointURL: https://fra1.digitaloceanspaces.com`.
+Passe `destinationPath` und `endpointURL` auf deinen Object Store an. Für DigitalOcean Spaces in `fra1`: `endpointURL: https://fra1.digitaloceanspaces.com`.
 
 ```bash
 cat <<EOF | kubectl apply -f -
@@ -82,17 +137,14 @@ spec:
 EOF
 ```
 
-Cluster-Status beobachten:
+Warten bis der Cluster healthy ist:
 
 ```bash
 kubectl -n production get cluster postgres-prod -w
+# Fertig wenn: STATUS "Cluster in healthy state", READY 3/3
 ```
 
-Sobald `STATUS` auf `Cluster in healthy state` wechselt und `READY` auf `3/3` steht, läuft der Cluster.
-
 ## Schritt 4: Testdaten einfügen
-
-Primary-Pod ermitteln und einloggen:
 
 ```bash
 PRIMARY=$(kubectl -n production get cluster postgres-prod \
@@ -110,11 +162,13 @@ SELECT * FROM orders;
 \q
 ```
 
-## Schritt 5: On-Demand-Backup erstellen
+## Schritt 5: WAL wechseln und Backup erstellen
 
-Merke dir die aktuelle Uhrzeit — du wirst sie für PITR brauchen.
+Der WAL-Switch sorgt dafür, dass alle bisherigen Änderungen sofort archiviert werden:
 
 ```bash
+kubectl -n production exec $PRIMARY -- psql -U postgres -c "SELECT pg_switch_wal();"
+
 cat <<EOF | kubectl apply -f -
 apiVersion: postgresql.cnpg.io/v1
 kind: Backup
@@ -126,24 +180,25 @@ spec:
     name: postgres-prod
   method: barmanObjectStore
 EOF
+
+kubectl -n production get backup backup-uebung -w
+# Warten bis PHASE "completed"
 ```
 
-Backup-Status prüfen:
+## Schritt 6: PITR-Zeitpunkt notieren und Post-Backup-Daten einfügen
 
 ```bash
-kubectl -n production get backup backup-uebung
-```
+# Aktuellen Zeitpunkt (UTC) als RESTORE_TIME merken
+kubectl -n production exec $PRIMARY -- psql -U postgres -t -c \
+  "SELECT to_char(now(), 'YYYY-MM-DD HH24:MI:SS');"
 
-Warte bis `PHASE` auf `completed` steht. WAL-Archivierung läuft kontinuierlich im Hintergrund.
-
-## Schritt 6: Weitere Daten einfügen (nach dem Backup)
-
-```bash
-kubectl -n production exec -it $PRIMARY -- psql -U postgres -c \
+# Daten einfügen, die nach dem Restore NICHT vorhanden sein sollen
+kubectl -n production exec $PRIMARY -- psql -U postgres -c \
   "INSERT INTO orders (product) VALUES ('Nach-Backup-Artikel');"
-```
 
-Merke dir erneut die aktuelle Uhrzeit als `RESTORE_TIME` — du willst später **vor** diesem Insert wiederherstellen.
+# WAL wechseln damit der neue Insert archiviert wird vor dem Löschen
+kubectl -n production exec $PRIMARY -- psql -U postgres -c "SELECT pg_switch_wal();"
+```
 
 ## Schritt 7: Cluster löschen (Disaster simulieren)
 
@@ -155,7 +210,7 @@ Alle Pods und PVCs werden gelöscht. Die Daten im Object Store bleiben.
 
 ## Schritt 8: Point-in-Time Recovery
 
-Ersetze `YYYY-MM-DD HH:MM:SS` mit der Zeit aus Schritt 5 (nach dem Backup, vor Schritt 6):
+Ersetze `YYYY-MM-DD HH:MM:SS` mit dem `RESTORE_TIME` aus Schritt 6:
 
 ```bash
 cat <<EOF | kubectl apply -f -
@@ -186,12 +241,9 @@ spec:
             name: backup-creds
             key: SECRET_ACCESS_KEY
 EOF
-```
 
-Recovery-Fortschritt beobachten:
-
-```bash
 kubectl -n production get cluster postgres-restored -w
+# Warten bis STATUS "Cluster in healthy state", READY 3/3
 ```
 
 ## Schritt 9: Daten prüfen
@@ -204,12 +256,13 @@ kubectl -n production exec -it $RESTORED -- psql -U postgres -c \
   "SELECT * FROM orders;"
 ```
 
-Erwartetes Ergebnis: Die drei ursprünglichen Artikel (`Widget`, `Gadget`, `Gizmo`) sind vorhanden. Der `Nach-Backup-Artikel` aus Schritt 6 fehlt — du hast exakt bis `targetTime` zurückgestellt.
+Erwartetes Ergebnis: `Widget`, `Gadget`, `Gizmo` sind vorhanden. `Nach-Backup-Artikel` fehlt — der Restore endete exakt bei `RESTORE_TIME`.
 
 ## Aufräumen
 
 ```bash
 kubectl delete namespace production
+kubectl delete namespace minio   # nur bei Option A
 kubectl delete -f \
   https://raw.githubusercontent.com/cloudnative-pg/cloudnative-pg/release-1.25/releases/cnpg-1.25.0.yaml
 ```
