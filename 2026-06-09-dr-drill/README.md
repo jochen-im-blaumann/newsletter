@@ -17,9 +17,10 @@ In dieser Übung baust du einen kubeadm-Cluster von Grund auf, richtest zwei Bac
 Schritt 1-3:  Cluster aufsetzen (kubeadm, 1 CP + 1 Worker)
 Schritt 4-5:  MinIO + CloudNativePG deployen
 Schritt 6:    Testdaten einfügen
-Schritt 7:    etcd-Snapshot + WAL-Archivierung einrichten
+Schritt 7:    Backups einrichten (etcd-Snapshot + CloudNativePG WAL + Velero)
 Schritt 8:    Datenverlust simulieren (DROP TABLE)
 Schritt 9:    CloudNativePG PITR — Wiederherstellung
+Schritt 9b:   Velero Restore — Kubernetes-Objekte wiederherstellen
 Schritt 10:   Aufräumen
 ```
 
@@ -408,9 +409,74 @@ EOF
 ```
 
 ```bash
-kubectl -n production get backup backup-vor-drill -w
+until kubectl -n production get backup backup-vor-drill \
+  -o jsonpath='{.status.phase}' 2>/dev/null | grep -q completed; do
+  sleep 5
+  echo "warte auf Backup..."
+done
+kubectl -n production get backup backup-vor-drill
 # NAME              AGE   CLUSTER        METHOD              PHASE
 # backup-vor-drill  45s   postgres-prod  barmanObjectStore   completed
+```
+
+### 7c: Velero installieren und Namespace-Backup erstellen
+
+Velero sichert Kubernetes-Objekte (CRDs, Secrets, Deployments) — unabhängig von den Datenbankdaten.
+
+```bash
+# Velero CLI auf dem Control Plane installieren
+VELERO_VERSION=v1.15.0
+curl -fsSL "https://github.com/vmware-tanzu/velero/releases/download/${VELERO_VERSION}/velero-${VELERO_VERSION}-linux-amd64.tar.gz" \
+  | tar xz --strip-components=1 -C /usr/local/bin \
+    "velero-${VELERO_VERSION}-linux-amd64/velero"
+
+velero version --client-only
+```
+
+Credentials-Datei für MinIO anlegen:
+
+```bash
+cat > /tmp/velero-credentials <<'EOF'
+[default]
+aws_access_key_id = minioadmin
+aws_secret_access_key = minioadmin
+EOF
+```
+
+Velero mit dem AWS-Plugin für MinIO installieren:
+
+```bash
+MINIO_IP=$(kubectl -n minio get svc minio -o jsonpath='{.spec.clusterIP}')
+
+velero install \
+  --provider aws \
+  --plugins velero/velero-plugin-for-aws:v1.11.0 \
+  --bucket velero-backups \
+  --backup-location-config "region=minio,s3ForcePathStyle=true,s3Url=http://${MINIO_IP}:9000" \
+  --secret-file /tmp/velero-credentials \
+  --use-volume-snapshots=false
+
+kubectl -n velero rollout status deployment/velero
+```
+
+BackupStorageLocation auf `Available` warten:
+
+```bash
+kubectl -n velero get backupstoragelocation
+# NAME      PHASE       LAST VALIDATED   AGE
+# default   Available   10s              30s
+```
+
+Backup des `production`-Namespace erstellen:
+
+```bash
+velero backup create production-backup \
+  --include-namespaces production \
+  --wait
+
+velero backup describe production-backup
+# Phase: Completed
+# Included namespaces: production
 ```
 
 ---
@@ -504,12 +570,57 @@ Erwartetes Ergebnis: alle drei Zeilen (Widget, Gadget, Gizmo) sind zurück.
 
 ---
 
+## Schritt 9b: Velero Restore (Kubernetes-Objekte)
+
+CloudNativePG hat die Tabellendaten gerettet. Jetzt testen wir die dritte Backup-Ebene: Was passiert, wenn ein kritisches Secret gelöscht wird?
+
+Das `minio-creds`-Secret enthält die Credentials für die WAL-Archivierung. Ohne es kann CloudNativePG keine neuen WAL-Segmente nach MinIO archivieren — der Cluster wird unhealthy.
+
+```bash
+kubectl -n production delete secret minio-creds
+
+# CloudNativePG meldet einen Fehler
+kubectl -n production describe cluster postgres-prod | grep -A5 "Message:"
+# cannot archive WAL file ... : ... access denied
+```
+
+Secret aus dem Velero-Backup wiederherstellen:
+
+```bash
+velero restore create restore-minio-creds \
+  --from-backup production-backup \
+  --include-resources secrets \
+  --include-namespaces production \
+  --wait
+
+velero restore describe restore-minio-creds
+# Phase: Completed
+```
+
+Secret ist zurück:
+
+```bash
+kubectl -n production get secret minio-creds
+# NAME          TYPE     DATA   AGE
+# minio-creds   Opaque   2      5s
+```
+
+CloudNativePG erholt sich automatisch — WAL-Archivierung läuft wieder:
+
+```bash
+kubectl -n production get cluster postgres-restored -w
+# NAME               AGE   INSTANCES   READY   STATUS                     PRIMARY
+# postgres-restored  5m    2           2       Cluster in healthy state    postgres-restored-1
+```
+
+---
+
 ## Schritt 10: Aufräumen
 
 **Kubernetes-Ressourcen:**
 
 ```bash
-kubectl delete namespace production minio
+kubectl delete namespace production minio velero
 kubectl delete -f \
   https://raw.githubusercontent.com/cloudnative-pg/cloudnative-pg/release-1.25/releases/cnpg-1.25.0.yaml
 ```
@@ -525,11 +636,12 @@ terraform destroy
 
 ## Was du gelernt hast
 
-Du hast zwei unabhängige Backup-Ebenen aufgesetzt und getestet:
+Du hast drei unabhängige Backup-Ebenen aufgesetzt und getestet:
 
 | Ebene | Tool | Was wird gesichert | Getestet mit |
 |---|---|---|---|
-| Cluster-State | etcd snapshot | Alle K8s-Objekte (Deployments, Secrets, CRDs) | Snapshot erstellt + geprüft |
-| Datenbankdaten | CloudNativePG PITR | Transaktionskonsistente Postgres-Daten | DROP TABLE → Wiederherstellung |
+| Cluster-State | etcd snapshot | K8s-Control-Plane-Daten (etcd) | Snapshot erstellt + geprüft |
+| K8s-Objekte | Velero | Namespaces, CRDs, Secrets, Deployments | Secret löschen → Velero-Restore |
+| Datenbankdaten | CloudNativePG PITR | Transaktionskonsistente Postgres-Daten | DROP TABLE → PITR-Wiederherstellung |
 
-Der entscheidende Unterschied zu "Backup vorhanden": Du hast den Restore durchgezogen und die Daten verifiziert.
+Der entscheidende Unterschied zu "Backup vorhanden": Du hast alle drei Restores durchgezogen und die Daten verifiziert.
