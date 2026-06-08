@@ -44,7 +44,7 @@ resource "digitalocean_ssh_key" "dr_drill" {
 
 resource "digitalocean_droplet" "control_plane" {
   name     = "dr-drill-cp"
-  image    = "ubuntu-22-04-x64"
+  image    = "ubuntu-24-04-x64"
   region   = var.region
   size     = var.droplet_size
   ssh_keys = [digitalocean_ssh_key.dr_drill.fingerprint]
@@ -56,7 +56,7 @@ resource "digitalocean_droplet" "control_plane" {
 
 resource "digitalocean_droplet" "worker" {
   name     = "dr-drill-worker"
-  image    = "ubuntu-22-04-x64"
+  image    = "ubuntu-24-04-x64"
   region   = var.region
   size     = var.droplet_size
   ssh_keys = [digitalocean_ssh_key.dr_drill.fingerprint]
