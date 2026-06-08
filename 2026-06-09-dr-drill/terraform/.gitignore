@@ -1,0 +1,7 @@
+terraform.tfvars
+id_rsa_dr_drill
+id_rsa_dr_drill.pub
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate
+terraform.tfstate.backup

@@ -9,6 +9,7 @@ Verzeichnis und wird direkt aus dem jeweiligen Newsletter-Artikel verlinkt.
 |-------|-------|
 | 2026-05-27 | [Velero auf DOKS installieren und testen](2026-05-27-velero-doks/) |
 | 2026-06-07 | [CloudNativePG: Backup und Point-in-Time Recovery](2026-06-07-cloudnativepg-backup/) |
+| 2026-06-09 | [Disaster Recovery Drill: etcd + CloudNativePG auf kubeadm](2026-06-09-dr-drill/) |
 
 ## Struktur
 
