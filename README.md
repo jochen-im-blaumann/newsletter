@@ -11,6 +11,7 @@ Verzeichnis und wird direkt aus dem jeweiligen Newsletter-Artikel verlinkt.
 | 2026-06-07 | [CloudNativePG: Backup und Point-in-Time Recovery](2026-06-07-cloudnativepg-backup/) |
 | 2026-06-09 | [Disaster Recovery Drill: etcd + CloudNativePG auf kubeadm](2026-06-09-dr-drill/) |
 | 2026-08-11 | [Kubernetes Sicherheit Folge 1: RBAC Least Privilege](2026-08-11-rbac-least-privilege/) |
+| 2026-08-18 | [Kubernetes Sicherheit Folge 2: Pod Security Admission](2026-08-18-pod-security-admission/) |
 
 ## Struktur
 
