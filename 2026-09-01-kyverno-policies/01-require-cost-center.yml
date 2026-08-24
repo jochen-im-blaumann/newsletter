@@ -1,0 +1,22 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-cost-center-label
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: check-cost-center
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - kyverno-demo
+      validate:
+        message: "Pflicht-Label 'cost-center' fehlt"
+        pattern:
+          metadata:
+            labels:
+              cost-center: "?*"

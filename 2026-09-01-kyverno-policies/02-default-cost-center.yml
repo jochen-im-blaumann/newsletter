@@ -1,0 +1,19 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: add-default-cost-center
+spec:
+  rules:
+    - name: add-cost-center-if-missing
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - kyverno-demo-mutate
+      mutate:
+        patchStrategicMerge:
+          metadata:
+            labels:
+              +(cost-center): "unassigned"

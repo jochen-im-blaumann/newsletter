@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 260" font-family="Helvetica, Arial, sans-serif">
+  <rect width="860" height="260" fill="#ffffff"/>
+
+  <!-- kubectl apply -->
+  <rect x="20" y="95" width="130" height="70" rx="8" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.5"/>
+  <text x="85" y="125" text-anchor="middle" font-size="14" fill="#1e1b4b" font-weight="600">kubectl</text>
+  <text x="85" y="143" text-anchor="middle" font-size="14" fill="#1e1b4b" font-weight="600">apply</text>
+
+  <line x1="150" y1="130" x2="200" y2="130" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- API Server -->
+  <rect x="200" y="85" width="150" height="90" rx="8" fill="#f1f5f9" stroke="#334155" stroke-width="1.5"/>
+  <text x="275" y="120" text-anchor="middle" font-size="14" fill="#0f172a" font-weight="600">Kubernetes</text>
+  <text x="275" y="138" text-anchor="middle" font-size="14" fill="#0f172a" font-weight="600">API Server</text>
+  <text x="275" y="158" text-anchor="middle" font-size="11" fill="#475569">Mutating + Validating Webhook</text>
+
+  <line x1="350" y1="130" x2="400" y2="130" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Kyverno -->
+  <rect x="400" y="60" width="200" height="140" rx="8" fill="#dcfce7" stroke="#15803d" stroke-width="1.5"/>
+  <text x="500" y="90" text-anchor="middle" font-size="14" fill="#14532d" font-weight="700">Kyverno</text>
+
+  <rect x="418" y="105" width="164" height="80" rx="6" fill="#f0fdf4" stroke="#22c55e" stroke-width="1"/>
+  <text x="500" y="125" text-anchor="middle" font-size="11" fill="#14532d" font-weight="600">ClusterPolicy</text>
+  <text x="500" y="140" text-anchor="middle" font-size="10" fill="#166534">reines YAML</text>
+  <text x="500" y="157" text-anchor="middle" font-size="10" fill="#166534">mutate: Label ergänzen</text>
+  <text x="500" y="172" text-anchor="middle" font-size="10" fill="#166534">validate: cost-center prüfen</text>
+
+  <line x1="600" y1="130" x2="650" y2="130" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- decision -->
+  <polygon points="650,130 700,95 750,130 700,165" fill="#e0f2fe" stroke="#0369a1" stroke-width="1.5"/>
+  <text x="700" y="126" text-anchor="middle" font-size="10" fill="#0c4a6e" font-weight="600">Label nach</text>
+  <text x="700" y="139" text-anchor="middle" font-size="10" fill="#0c4a6e" font-weight="600">mutate ok?</text>
+
+  <line x1="750" y1="115" x2="800" y2="80" stroke="#16a34a" stroke-width="2" marker-end="url(#arrowGreen)"/>
+  <text x="805" y="75" font-size="12" fill="#15803d" font-weight="700">Allow</text>
+
+  <line x1="750" y1="145" x2="800" y2="180" stroke="#dc2626" stroke-width="2" marker-end="url(#arrowRed)"/>
+  <text x="805" y="195" font-size="12" fill="#b91c1c" font-weight="700">Deny</text>
+
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#64748b"/>
+    </marker>
+    <marker id="arrowGreen" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#16a34a"/>
+    </marker>
+    <marker id="arrowRed" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#dc2626"/>
+    </marker>
+  </defs>
+</svg>
