@@ -14,6 +14,8 @@ Verzeichnis und wird direkt aus dem jeweiligen Newsletter-Artikel verlinkt.
 | 2026-08-18 | [Kubernetes Sicherheit Folge 2: Pod Security Admission](2026-08-18-pod-security-admission/) |
 | 2026-08-25 | [Kubernetes Sicherheit Folge 3: OPA Gatekeeper](2026-08-25-opa-gatekeeper/) |
 | 2026-09-01 | [Kubernetes Sicherheit Folge 4: Kyverno](2026-09-01-kyverno-policies/) |
+| 2026-09-08 | [Kubernetes Sicherheit Folge 5: NetworkPolicy Default-Deny](2026-09-08-networkpolicy-default-deny/) |
+| 2026-09-15 | [Kubernetes Sicherheit Folge 6: Secrets Management](2026-09-15-secrets-management/) |
 
 ## Struktur
 
