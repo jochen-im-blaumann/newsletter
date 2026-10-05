@@ -17,6 +17,7 @@ Verzeichnis und wird direkt aus dem jeweiligen Newsletter-Artikel verlinkt.
 | 2026-09-08 | [Kubernetes Sicherheit Folge 5: NetworkPolicy Default-Deny](2026-09-08-networkpolicy-default-deny/) |
 | 2026-09-15 | [Kubernetes Sicherheit Folge 6: Secrets Management](2026-09-15-secrets-management/) |
 | 2026-09-29 | [Kubernetes Sicherheit Folge 7: Audit-Log](2026-09-29-audit-logging/) |
+| 2026-10-06 | [Kubernetes Sicherheit Folge 8: Pod-Traffic verschlüsseln (Calico + WireGuard)](2026-10-06-calico-wireguard/) |
 
 ## Struktur
 

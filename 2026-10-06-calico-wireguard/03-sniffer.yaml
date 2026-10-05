@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: sniffer
+spec:
+  nodeName: wg-demo-worker
+  hostNetwork: true
+  containers:
+    - name: tcpdump
+      image: nicolaka/netshoot:latest
+      command: ["sleep", "infinity"]
+      securityContext:
+        capabilities:
+          add: ["NET_ADMIN", "NET_RAW"]
