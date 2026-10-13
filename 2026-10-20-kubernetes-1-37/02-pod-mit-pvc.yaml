@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: app
+spec:
+  containers:
+    - name: app
+      image: busybox:1.37
+      command: ["sleep", "infinity"]
+      volumeMounts:
+        - name: daten
+          mountPath: /daten
+  volumes:
+    - name: daten
+      persistentVolumeClaim:
+        claimName: daten
