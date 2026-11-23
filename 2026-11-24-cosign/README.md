@@ -157,6 +157,14 @@ docker rm -f kind-registry
 rm -rf manipuliert cosign.key cosign.pub
 ```
 
+## Stolpersteine aus meinem Test
+
+- **Format der Signatur.** Mit dem Standardformat von cosign 3.1.4 hat Kyverno 1.20.0 bei mir keine Signatur gefunden (`no signatures found`, obwohl `cosign verify` sie fand). Erst mit `--new-bundle-format=false`, das cosign selbst als „deprecated“ meldet, klappte es. Das war in meinem Aufbau mit einer lokalen Registry (`registry:2`) so, bei `registry:3` ebenfalls (dort antwortete die Referrers-API mit 404). Ob es bei dir auch so ist, hängt von Registry und Versionen ab. Teste beides, bevor du dich auf eine Kombination festlegst.
+- **Kyverno 1.20 und die alten Regeln.** Eine `ClusterPolicy` lässt sich dort nicht mehr anlegen („Kyverno v1.20 removed execution of legacy kyverno.io policy types and no longer accepts create or update requests for them“). Was das für bestehende Regeln aus Folge 4 heißt, habe ich nicht getestet. Schau in die Migrationsanleitung von Kyverno, bevor du auf 1.20 gehst.
+- **Namen in der CEL-Regel.** Der Name des Attestors darf keinen Bindestrich enthalten (`unser-schluessel` wurde abgelehnt, `unserkey` geht).
+- **Der private Schlüssel ist jetzt das Ziel.** Wer ihn hat, kann signieren, was er will. Er gehört in den Secret-Store der CI oder in ein KMS, nicht auf einen Laptop.
+- **Gatekeeper-Nutzer:** Soweit ich weiß, prüft Gatekeeper Signaturen nicht allein, es braucht eine Zusatzkomponente. Das habe ich nicht ausprobiert.
+
 ## Was die Übung nicht zeigt
 
 - **Keyless-Signieren** (Signatur an eine Identität wie ein GitHub-Konto oder einen CI-Job gebunden, ohne Schlüsseldatei): läuft über die öffentlichen Sigstore-Dienste und braucht Internet. Hier nicht getestet.
