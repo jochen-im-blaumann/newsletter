@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: shop-signed
+  namespace: shop
+spec:
+  containers:
+    - name: shop
+      image: kind-registry:5000/shop:1.0
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: shop-unsigned
+  namespace: shop
+spec:
+  containers:
+    - name: intruder
+      image: kind-registry:5000/intruder:1.0

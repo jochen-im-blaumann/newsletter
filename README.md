@@ -19,6 +19,7 @@ Verzeichnis und wird direkt aus dem jeweiligen Newsletter-Artikel verlinkt.
 | 2026-09-29 | [Kubernetes Sicherheit Folge 7: Audit-Log](2026-09-29-audit-logging/) |
 | 2026-10-06 | [Kubernetes Sicherheit Folge 8: Pod-Traffic verschlüsseln (Calico + WireGuard)](2026-10-06-calico-wireguard/) |
 | 2026-11-17 | [Kubernetes Sicherheit Folge 10: Mit wem redet dein Pod? Traffic mitschneiden mit dumpy](2026-11-17-dumpy/) |
+| 2026-11-24 | [Kubernetes Sicherheit Folge 11: Image-Signatur prüfen im Cluster (cosign + Kyverno)](2026-11-24-cosign/) |
 
 ## Struktur
 
