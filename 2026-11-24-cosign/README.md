@@ -92,7 +92,8 @@ Das erste liefert die Signatur samt Digest, das zweite endet mit `Error: no sign
 
 ## Schritt 3: Kyverno installieren und die Regel anlegen
 
-Ab Kyverno 1.20 nimmt der Cluster keine alten `ClusterPolicy`-Objekte mehr an (Lesen und Löschen geht noch). Für Signaturen gibt es die `ImageValidatingPolicy` in der API-Gruppe `policies.kyverno.io`.
+> [!IMPORTANT]
+> **Achtung, wenn du Folge 4 (Kyverno) nachgebaut hast:** In Kyverno 1.20.0 lässt sich eine `ClusterPolicy` nicht mehr anlegen. Die Meldung beim Anlegen: „Kyverno v1.20 removed execution of legacy kyverno.io policy types and no longer accepts create or update requests for them“. Lesen, Auflisten, Exportieren und Löschen geht laut Meldung noch. Die neuen Regeltypen liegen in der API-Gruppe `policies.kyverno.io`. Für Signaturen heißt das Objekt `ImageValidatingPolicy`. Was mit bestehenden Regeln passiert, habe ich nicht getestet: Schau in die [Migrationsanleitung von Kyverno](https://kyverno.io/docs/guides/migration-to-cel/), bevor du auf 1.20 gehst.
 
 ```bash
 helm repo add kyverno https://kyverno.github.io/kyverno/
@@ -160,7 +161,6 @@ rm -rf manipuliert cosign.key cosign.pub
 ## Stolpersteine aus meinem Test
 
 - **Format der Signatur.** Mit dem Standardformat von cosign 3.1.4 hat Kyverno 1.20.0 bei mir keine Signatur gefunden (`no signatures found`, obwohl `cosign verify` sie fand). Erst mit `--new-bundle-format=false`, das cosign selbst als „deprecated“ meldet, klappte es. Das war in meinem Aufbau mit einer lokalen Registry (`registry:2`) so, bei `registry:3` ebenfalls (dort antwortete die Referrers-API mit 404). Ob es bei dir auch so ist, hängt von Registry und Versionen ab. Teste beides, bevor du dich auf eine Kombination festlegst.
-- **Kyverno 1.20 und die alten Regeln.** Eine `ClusterPolicy` lässt sich dort nicht mehr anlegen („Kyverno v1.20 removed execution of legacy kyverno.io policy types and no longer accepts create or update requests for them“). Was das für bestehende Regeln aus Folge 4 heißt, habe ich nicht getestet. Schau in die Migrationsanleitung von Kyverno, bevor du auf 1.20 gehst.
 - **Namen in der CEL-Regel.** Der Name des Attestors darf keinen Bindestrich enthalten (`unser-schluessel` wurde abgelehnt, `unserkey` geht).
 - **Der private Schlüssel ist jetzt das Ziel.** Wer ihn hat, kann signieren, was er will. Er gehört in den Secret-Store der CI oder in ein KMS, nicht auf einen Laptop.
 - **Gatekeeper-Nutzer:** Soweit ich weiß, prüft Gatekeeper Signaturen nicht allein, es braucht eine Zusatzkomponente. Das habe ich nicht ausprobiert.
